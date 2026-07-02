@@ -4,6 +4,9 @@ from typing import Any, Callable
 
 from .exceptions import BusClosedError
 from .subscription import Subscription
+import logging
+
+_logger = logging.getLogger(__name__)
 
 _Registration = namedtuple("_Registration", ["id", "handler"])
 
@@ -36,3 +39,16 @@ class EventBus:
             else:
                 self._subscribers.pop(subscription.event_type, None)
             return True
+        
+    def publish(self, event_type: str, event: Any) -> None:
+        with self._lock:
+            if self._closed:
+                raise BusClosedError("cannot publish on a closed bus")
+            handlers = self._subscribers.get(event_type, ())
+        for reg in handlers:
+            try:
+                reg.handler(event)
+            except Exception:
+                _logger.exception(
+                    "event handler %r for %r raised", reg.handler, event_type
+                )

@@ -1,5 +1,5 @@
 import pytest
-
+import logging
 from eventbus import BusClosedError, EventBus
 
 
@@ -59,3 +59,42 @@ def test_unsubscribe_one_of_duplicate_handlers_leaves_the_other():
     remaining = bus._subscribers["order.placed"]
     assert len(remaining) == 1
     assert remaining[0].id == sub2.id
+    
+def test_publish_invokes_handler_with_event():
+    bus = EventBus()
+    received = []
+    bus.subscribe("order.placed", lambda e: received.append(e))
+    bus.publish("order.placed", {"id": 42})
+    assert received == [{"id": 42}]
+
+
+def test_publish_with_no_subscribers_is_noop():
+    bus = EventBus()
+    bus.publish("nobody.listening", 123)  # must not raise
+
+
+def test_publish_invokes_all_handlers_in_registration_order():
+    bus = EventBus()
+    calls = []
+    bus.subscribe("e", lambda e: calls.append("a"))
+    bus.subscribe("e", lambda e: calls.append("b"))
+    bus.publish("e", None)
+    assert calls == ["a", "b"]
+
+
+def test_handler_exception_is_isolated_and_logged(caplog):
+    bus = EventBus()
+    received = []
+    bus.subscribe("e", lambda e: (_ for _ in ()).throw(ValueError("boom")))
+    bus.subscribe("e", lambda e: received.append(e))
+    with caplog.at_level(logging.ERROR):
+        bus.publish("e", "payload")   # must NOT raise
+    assert received == ["payload"]    # the good handler still ran
+    assert "raised" in caplog.text    # the failure was logged
+
+
+def test_publish_on_closed_bus_raises():
+    bus = EventBus()
+    bus._closed = True
+    with pytest.raises(BusClosedError):
+        bus.publish("e", None)
