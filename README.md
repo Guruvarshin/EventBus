@@ -168,15 +168,15 @@ class EventBus:
 |--------|---------|--------|-------|
 | `subscribe` | `Subscription` receipt | `BusClosedError` if closed | Same handler may be subscribed many times. |
 | `publish` | `None` | `BusClosedError` if closed | Runs all handlers synchronously, in subscription order. |
-| `unsubscribe` | `bool` (removed or not) | — | Idempotent; never raises for state reasons. |
-| `shutdown` | `bool` (drained or timed out) | — | Idempotent; permanently closes the bus. |
+| `unsubscribe` | `bool` (removed or not) | - | Idempotent; never raises for state reasons. |
+| `shutdown` | `bool` (drained or timed out) | - | Idempotent; permanently closes the bus. |
 
 Supporting types (all importable from the top-level `eventbus` package):
 
-- `Subscription` — an opaque, immutable receipt returned by `subscribe`. Treat
+- `Subscription` - an opaque, immutable receipt returned by `subscribe`. Treat
   it as a token; do not depend on its internal fields.
-- `EventBusError` — base class for every exception the library raises.
-- `BusClosedError` — subclass of `EventBusError`, raised on `publish`/`subscribe`
+- `EventBusError` - base class for every exception the library raises.
+- `BusClosedError` - subclass of `EventBusError`, raised on `publish`/`subscribe`
   after shutdown.
 
 ### Notes on the interface
@@ -192,7 +192,7 @@ Two deliberate adaptations were made to fit Python idioms:
   act on (whether `unsubscribe` removed something, whether `shutdown` drained
   in time), which is why those two methods return `bool` instead of raising.
 - **Shutdown takes a `timeout: float`, not a cancellation object.** A single
-  timeout captures the one capability shutdown actually needs — a deadline —
+  timeout captures the one capability shutdown actually needs - a deadline —
   and matches the rest of the standard library (`Thread.join`, `Event.wait`,
   `Lock.acquire`, `Condition.wait`).
 
@@ -228,8 +228,8 @@ used by Python's `logging` handlers and by signal libraries such as `blinker`.
 It was chosen because it yields the clearest guarantees (when `publish` returns,
 delivery is done), the simplest failure and shutdown semantics, and the
 smallest amount of concurrency machinery to get right. Concurrency between
-*different* publishers is preserved — each runs on its own thread and they do
-not serialize on one another — while the delivery for a single publish stays
+*different* publishers is preserved - each runs on its own thread and they do
+not serialize on one another - while the delivery for a single publish stays
 simple and ordered.
 
 **Writes use copy-on-write.** Subscribing or unsubscribing does not mutate an
@@ -242,15 +242,15 @@ change.
 
 ## Concurrency model
 
-All shared state — the subscriber map, the id counter, the in-flight counter,
-and the closed flag — is guarded by a single `threading.Lock`. A
+All shared state - the subscriber map, the id counter, the in-flight counter,
+and the closed flag - is guarded by a single `threading.Lock`. A
 `threading.Condition` built on that same lock coordinates shutdown.
 
 The key idea is that **the lock is never held while user code runs.**
 
 **Publish (the hot path).** Under the lock, `publish` checks that the bus is
 open, takes a reference to the current handler tuple, and increments the
-in-flight counter — then releases the lock. It iterates that tuple and calls the
+in-flight counter - then releases the lock. It iterates that tuple and calls the
 handlers with **no lock held**. Because the tuple is immutable and was captured
 under the lock, it cannot change underneath the iteration even if another thread
 subscribes or unsubscribes concurrently. Holding the lock only for the brief
@@ -355,8 +355,8 @@ The suite has two parts:
   behavior of each operation, including error isolation, idempotent
   unsubscribe, and shutdown draining and timeout.
 - **Concurrency stress tests** (`tests/test_concurrency.py`) drive the bus from
-  many threads at once — concurrent publishers, subscribe/unsubscribe churn
-  during publishing, and shutdown racing live publishers — and assert
+  many threads at once - concurrent publishers, subscribe/unsubscribe churn
+  during publishing, and shutdown racing live publishers - and assert
   invariants that can only hold if the locking is correct.
 
 Because race conditions are intermittent, the stress tests are most meaningful
