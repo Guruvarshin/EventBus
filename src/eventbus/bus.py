@@ -17,6 +17,8 @@ class EventBus:
         self._next_id = 0
         self._closed = False
         self._lock = threading.Lock()
+        self._cond = threading.Condition(self._lock)
+        self._inflight = 0
         
     def subscribe(self, event_type: str, handler: Callable[[Any], None]) -> Subscription:
         with self._lock:
@@ -45,10 +47,24 @@ class EventBus:
             if self._closed:
                 raise BusClosedError("cannot publish on a closed bus")
             handlers = self._subscribers.get(event_type, ())
-        for reg in handlers:
-            try:
-                reg.handler(event)
-            except Exception:
-                _logger.exception(
-                    "event handler %r for %r raised", reg.handler, event_type
-                )
+            self._inflight += 1
+        try:
+            for reg in handlers:
+                try:
+                    reg.handler(event)
+                except Exception:
+                    _logger.exception(
+                        "event handler %r for %r raised", reg.handler, event_type
+                    )
+        finally:
+            with self._lock:
+                self._inflight -= 1
+                if self._inflight == 0:
+                    self._cond.notify_all()
+                    
+    def shutdown(self, timeout: float | None = None) -> bool:
+        with self._cond:
+            self._closed = True
+            self._subscribers = {}
+            return self._cond.wait_for(lambda: self._inflight == 0, timeout)
+   

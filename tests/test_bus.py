@@ -1,6 +1,8 @@
 import pytest
 import logging
 from eventbus import BusClosedError, EventBus
+import threading
+import time
 
 
 def test_bus_constructs_empty():
@@ -98,3 +100,52 @@ def test_publish_on_closed_bus_raises():
     bus._closed = True
     with pytest.raises(BusClosedError):
         bus.publish("e", None)
+        
+def test_shutdown_rejects_new_operations():
+    bus = EventBus()
+    assert bus.shutdown() is True
+    with pytest.raises(BusClosedError):
+        bus.publish("e", None)
+    with pytest.raises(BusClosedError):
+        bus.subscribe("e", lambda e: None)
+
+
+def test_shutdown_is_idempotent():
+    bus = EventBus()
+    assert bus.shutdown() is True
+    assert bus.shutdown() is True
+
+
+def test_shutdown_waits_for_inflight_publish():
+    bus = EventBus()
+    started = threading.Event()
+    done = threading.Event()
+
+    def slow(event):
+        started.set()
+        time.sleep(0.2)
+        done.set()
+
+    bus.subscribe("e", slow)
+    t = threading.Thread(target=lambda: bus.publish("e", None))
+    t.start()
+    started.wait(1.0)                    # publish is now mid-dispatch
+    assert bus.shutdown(timeout=5.0) is True
+    assert done.is_set()                 # shutdown waited for the handler
+    t.join()
+
+
+def test_shutdown_times_out_when_handler_too_slow():
+    bus = EventBus()
+    started = threading.Event()
+
+    def slow(event):
+        started.set()
+        time.sleep(1.0)
+
+    bus.subscribe("e", slow)
+    t = threading.Thread(target=lambda: bus.publish("e", None))
+    t.start()
+    started.wait(1.0)
+    assert bus.shutdown(timeout=0.1) is False   # handler outlives the timeout
+    t.join()
