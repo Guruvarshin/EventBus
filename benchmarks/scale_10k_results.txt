@@ -1,0 +1,30 @@
+EVENT BUS SCALE TEST
+============================================================
+machine     : Windows-11-10.0.26200-SP0
+python      : 3.14.6
+tooling     : stdlib threading + perf_counter
+
+[A] 1,000 publishers x 1,000 subscribers
+  requested publishers : 1,000
+  subscribers          : 1,000
+  concurrent publisher THREADS actually created : 1,000
+  subscribe() setup time (O(n^2) copy-on-write) :    0.002 s
+  all-publish wall time                         :    0.102 s
+  expected deliveries  : 1,000,000
+  actual deliveries    : 1,000,000
+  MATCH (no lost/dup)  : True
+  delivery throughput  : 9,801,654 deliveries/s
+  publish throughput   : 9,802 publishes/s
+
+[B] 10,000 publishers x 10,000 subscribers
+  requested publishers : 10,000
+  subscribers          : 10,000
+  concurrent publisher THREADS actually created : 10,000
+  subscribe() setup time (O(n^2) copy-on-write) :    0.126 s
+  all-publish wall time                         :    7.388 s
+  expected deliveries  : 100,000,000
+  actual deliveries    : 100,000,000
+  MATCH (no lost/dup)  : True
+  delivery throughput  : 13,536,309 deliveries/s
+  publish throughput   : 1,354 publishes/s
+

@@ -1,0 +1,17 @@
+FULLY CONCURRENT PUBLISHERS + SUBSCRIBERS @ 10,000
+============================================================
+python : 3.14.6
+
+[A] steady state: each publish fans out to all 10,000 handlers
+  [A] 10,000 concurrent publishers, each publish -> 10,000 handlers
+      crash / exceptions : 0  (NO CRASH)
+      deliveries         : 100,000,000  (expected 100,000,000)  match=True
+      wall time          : 7.388s  (13,535,084 deliveries/s)
+
+[B] subscribe and publish happening at the same time
+  [B] 10,000 subscribers + 10,000 publishers started SIMULTANEOUSLY (20,000 threads)
+      crash / exceptions : 0  (NO CRASH)
+      deliveries         : 49,845,084  (non-deterministic: subs register while publishing)
+      wall time          : 5.073s
+
+DONE

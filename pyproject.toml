@@ -11,6 +11,7 @@ requires-python = ">=3.11"
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "pytest-repeat>=0.9"]
+bench = ["pyperf>=2.6", "locust>=2.20"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

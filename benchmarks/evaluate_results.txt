@@ -1,0 +1,33 @@
+EVENT BUS EVALUATION
+======================================================================
+python : 3.14.6
+
+[1] PUBLISH LATENCY vs fan-out (including large fan-out)
+  fanout=     1 (n=100,000): p50=     0.60  p95=     0.70  p99=     0.80  p99.9=      5.50  mean=     0.64  (us)
+  fanout=    10 (n=100,000): p50=     0.90  p95=     1.00  p99=     1.10  p99.9=      8.30  mean=     1.03  (us)
+  fanout=   100 (n=100,000): p50=     3.90  p95=     4.30  p99=     7.10  p99.9=    118.10  mean=     4.72  (us)
+  fanout=  1000 (n= 20,000): p50=    32.60  p95=    37.60  p99=    79.30  p99.9=    261.00  mean=    34.69  (us)
+  fanout= 10000 (n=  3,000): p50=   328.10  p95=   413.80  p99=   580.50  p99.9=   1071.40  mean=   343.58  (us)
+
+[2] THROUGHPUT vs concurrent publishers
+  publishers=  1:    100,000 publishes in  0.060s ->    1,675,370 publish/s
+  publishers=  2:    200,000 publishes in  0.125s ->    1,603,510 publish/s
+  publishers=  4:    400,000 publishes in  0.193s ->    2,074,908 publish/s
+  publishers=  8:    800,000 publishes in  0.330s ->    2,421,856 publish/s
+  publishers= 16:  1,600,000 publishes in  0.636s ->    2,515,980 publish/s
+
+[3] DEADLOCK when a handler calls publish?
+  handler-calls-publish finished in 0.009 ms, NO deadlock. seen=[5, 4, 3, 2, 1, 0], shutdown_drained=True
+
+[4] FIRST handler in the list HANGS FOREVER -- are the others starved?
+  order observed          : ['hang-started']
+  2nd/3rd handlers ran?   : False / False  (False = STARVED by the hanging first handler)
+  publisher thread alive? : True  (True = it just keeps hanging, cannot be killed)
+  a DIFFERENT event still delivered = True in 0.010 ms (the hang only blocks its OWN publisher)
+  shutdown(timeout=1) drained = False after 1012 ms (False = the hung handler can never be drained; in-flight stays > 0 forever)
+
+[5] HUMAN INTERRUPT (Ctrl-C) inside a handler
+  KeyboardInterrupt PROPAGATED out of publish; later handler ran = False (False = remaining handlers starved by the interrupt)
+  bus still shuts down cleanly = True (in-flight counter restored by finally)
+
+DONE
