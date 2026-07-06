@@ -326,7 +326,13 @@ publish can never begin dispatching after shutdown has started draining.
   asynchronous dispatch mode backed by a bounded thread pool, which would trade
   the strong "delivered when publish returns" guarantee for decoupling. (In
   CPython the GIL means such a pool would not parallelize CPU-bound handlers
-  anyway; its value is decoupling from blocking I/O.)
+  anyway; its value is decoupling from blocking I/O.) A **`ConfinedEventBus`**
+  implementing this (a queue + a dedicated dispatcher thread, with the registry
+  confined to that thread so no lock is needed) is included: `publish` enqueues
+  in ~0.6-1.3 µs regardless of fan-out and is never blocked by a hanging handler,
+  at the cost of the delivered-on-return guarantee and asynchronous
+  subscribe/unsubscribe. See
+  [`benchmarks/CONFINED_RESULTS.md`](benchmarks/CONFINED_RESULTS.md).
 - **Handlers cannot be forcibly stopped; a hanging handler hangs forever.**
   Python provides no safe way to kill a running thread. A handler that blocks
   forever pins the publisher thread that called it and keeps the in-flight count
@@ -417,6 +423,7 @@ pip install -e ".[bench]"
 python benchmarks/evaluate.py                  # latency, throughput, behaviour
 python benchmarks/scale_test.py                # 10k x 10k scale
 python benchmarks/concurrent_full.py           # publishers + subscribers at once
+python benchmarks/bench_compare.py             # synchronous vs confined (lock-free)
 python benchmarks/bench_pyperf.py -o benchmarks/pyperf_results.json
 python -m locust -f benchmarks/locustfile.py --headless -u 500 -r 500 -t 15s --only-summary
 ```

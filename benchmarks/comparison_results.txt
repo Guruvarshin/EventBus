@@ -1,0 +1,27 @@
+SYNCHRONOUS vs CONFINED (LOCK-FREE) -- HEAD TO HEAD
+==================================================================
+python : 3.14.6
+
+[1] Publish latency vs fan-out (p50 us)
+   fan-out |   SYNC (runs handlers) |   CONFINED (enqueue)
+         1 |                   0.60 |                 0.60
+       100 |                   4.00 |                 1.40
+     10000 |                 329.40 |                 0.60
+
+[2] Enqueue / publish throughput (fan-out 1)
+  SYNC     :    1,634,126 publish/s (runs handler inline)
+  CONFINED :      808,453 publish/s (enqueue only)
+
+[3] End-to-end delivery latency, empty queue (p50 / p99 us)
+  SYNC     : 7.10 / 59.30   (delivered before publish returns)
+  CONFINED : 53.80 / 544.70   (queue handoff to dispatcher)
+
+[4] Correctness: 8 publishers x 5000 events x 5 handlers
+  SYNC     : delivered 200,000 / expected 200,000  match=True
+  CONFINED : delivered 200,000 / expected 200,000  match=True  drained=True
+
+[5] Handler hangs forever -- is the publisher blocked?
+  SYNC     : publish returned within 1s = False  (False = BLOCKED forever)
+  CONFINED : publish still returns in p50 0.60 us  (NOT blocked)
+
+DONE
